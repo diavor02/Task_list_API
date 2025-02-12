@@ -41,14 +41,20 @@
 </ul>
 <h4>4. Install Docker Desktop</h4>
 <ul>
-  <li></li>
+  <li>You need a running Docker Engine in order to build a Docker Image.</li>
 </ul>
 
 <br>
 <h2>Deploying to AWS Lambda</h2>
 <ul>
-  <li>Build the Docker Image: <code>docker build -t task-notification-lambda .</code> (make sure <code>notifications.py</code>, <code>requirements.txt</code> and the <code>Dockerfile</code> are in the same directory</li>
+  <li>1. Build the Docker Image: <code>docker build -t task-notification-lambda .</code> (make sure <code>notifications.py</code>, <code>requirements.txt</code> and the <code>Dockerfile</code> are in the same directory).</li>
+  <li>2. Push the Docker image to Amazon ECR.</li>
+  <li>3. Create a new Lambda function using the Docker image.</li>
+  <li>4. Set up an EventBridge rule to trigger the Lambda function at the desired interval (e.g., daily).</li>
 </ul>
+
+<h2>License</h2>
+<p>This project is licensed under the MIT License - see the LICENSE file for details.</p>
 
 
 
