@@ -1,3 +1,13 @@
+<h1>Table of Contents</h1>
+<ul>
+  <li><a href="#overview">Overview</a></li>
+  <li><a href="#features">Features</a></li>
+  <li><a href="#prerequisites">Prerequisites</a></li>
+  <li><a href="#deploying-to-aws-lambda">Deploying to AWS Lambda</a></li>
+  <li><a href="#license">License</a></li>
+</ul>
+
+<br>
 <h1>PART 2: SENDING NOTIFICATIONS TO USERS</h1>
 
 <h2>Overview</h2>
@@ -53,6 +63,7 @@
   <li>4. Set up an EventBridge rule to trigger the Lambda function at the desired interval (e.g., daily).</li>
 </ul>
 
+<br>
 <h2>License</h2>
 <p>This project is licensed under the MIT License - see the LICENSE file for details.</p>
 
