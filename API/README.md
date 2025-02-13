@@ -10,7 +10,7 @@
   <li><a href="#security-notes">Security Notes</a></li>
   <li><a href="#deployment">Deployment</a></li>
   <li><a href="#dependencies">Dependencies</a></li>
-  <li><a href="#licence">Licence</a></li>
+  <li><a href="#license">License</a></li>
 </ul>
 
 <br>
