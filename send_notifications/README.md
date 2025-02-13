@@ -2,7 +2,6 @@
 <ul>
   <li><a href="#overview">Overview</a></li>
   <li><a href="#features">Features</a></li>
-  <li><a href="#prerequisites">Prerequisites</a></li>
   <li><a href="#deploying-to-aws-lambda">Deploying to AWS Lambda</a></li>
   <li><a href="#license">License</a></li>
 </ul>
@@ -34,33 +33,11 @@
 </ul>
 
 <br>
-<h2>Prerequisites</h2>
-<h4>1. Set Up Database (for this project I used a PostgreSQL database, but any SQL database compatible with AWS would do)</h4>
-<ul>
-  <li>Ensure your PostgreSQL database is running and accessible.</li>
-  <li>Update the <code>DATABASE_URL</code> in <code>notifications.py</code> with your database credentials.</li>
-</ul>
-<h4>2. Set Up Gmail Account</h4>
-<ul>
-  <li>Update the <code>email_sender</code> and <code>email_password</code> in <code>notifications.py</code> with your Gmail credentials.</li>
-  <li>Use an App Password if 2 Factor Authentification is enabled.</li>
-</ul>
-<h4>3. AWS Lambda Configuration</h4>
-<ul>
-  <li>Ensure your Lambda function has the necessary permissions to access the database and send emails.</li>
-</ul>
-<h4>4. Install Docker Desktop</h4>
-<ul>
-  <li>You need a running Docker Engine in order to build a Docker Image.</li>
-</ul>
-
-<br>
 <h2>Deploying to AWS Lambda</h2>
 <ul>
-  <li>1. Build the Docker Image: <code>docker build -t task-notification-lambda .</code> (make sure <code>notifications.py</code>, <code>requirements.txt</code> and the <code>Dockerfile</code> are in the same directory).</li>
-  <li>2. Push the Docker image to Amazon ECR.</li>
-  <li>3. Create a new Lambda function using the Docker image.</li>
-  <li>4. Set up an EventBridge rule to trigger the Lambda function at the desired interval (e.g., daily).</li>
+  <li>AWS Lambda for serverless execution (the function was created using the Docker image</li>
+  <li>EventBridge rule to trigger the Lambda function at the desired interval (e.g., daily).</li>
+  <li>Docker container packaging</li>
 </ul>
 
 <br>
