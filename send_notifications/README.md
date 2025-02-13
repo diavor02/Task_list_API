@@ -1,4 +1,4 @@
-<h1>Table of Contents</h1>
+<h2>Table of Contents</h2>
 <ul>
   <li><a href="#overview">Overview</a></li>
   <li><a href="#features">Features</a></li>
