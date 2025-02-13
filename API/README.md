@@ -179,8 +179,11 @@
   <li>Mangum (AWS Lambda adapter)</li>
   <li>Psycopg2 (PostgreSQL adapter)</li>
 </ul>
-
-<p>Note: for more information /p>
+<br>
+<h2>License</h2>
+<p>This project is licensed under the MIT License - see the LICENSE file for details.</p>
+<br>
+<p>Note: for more information, access FastApi's automatically created documentation for the API at "https://4mvvs3klti.execute-api.us-east-1.amazonaws.com/docs"</p>
 
 
 
