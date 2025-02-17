@@ -30,8 +30,8 @@
   <li>AWS Lambda deployment with Mangum adapter</li>
 </ul>
 
-<p allign_items=center>
-  <img src="architecture.png" height="20">
+<p align="center">
+ <img src="architecture.png" height="100">
 </p>
 
 <br>
