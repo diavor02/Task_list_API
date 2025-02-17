@@ -33,7 +33,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 ALGORITHM = "HS256"
 
 DATABASE_URL = (
-    "postgresql+psycopg2://postgres:Bag_pula123.@my-first-db.cbomes4a4cj7.us-east-1.rds.amazonaws.com:5432/postgres"
+    ""
 )
 
 engine = create_engine(DATABASE_URL)
@@ -330,6 +330,8 @@ def new_task(
         HTTPException: If the provided deadline format is invalid.
     """
     user_id = get_user_id(db, token)
+
+    # The task deadline is passed as a string so as to check the correct format
     if not check_date(task.deadline):
         raise HTTPException(
             status_code=400,
