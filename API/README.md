@@ -102,7 +102,7 @@
 <br>
 <h3>Create Task</h3>
 <pre><code>
-  task_url = "https://4mvvs3klti.execute-api.us-east-1.amazonaws.com/tasks/new_task"
+  task_url = "https://4mvvs3klti.execute-api.us-east-1.amazonaws.com/tasks"
   <br>
   headers = {"Authorization": f"Bearer {access_token}"}
   <br>
