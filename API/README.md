@@ -31,7 +31,7 @@
 </ul>
 
 <p allign_items=center>
-  <img src="architecture.png" heigth=300>
+  <img src="architecture.png" heigth=10>
 </p>
 
 <br>
