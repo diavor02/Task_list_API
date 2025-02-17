@@ -30,6 +30,10 @@
   <li>AWS Lambda deployment with Mangum adapter</li>
 </ul>
 
+<p allign_items=center>
+  <img src="architecture.png">
+</p>
+
 <br>
 <h2>API Endpoints</h2>
 <h3>User Management</h3>
