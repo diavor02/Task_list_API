@@ -7,13 +7,13 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Request, HTTPException, status
 
-# Secret key and algorithm for JWT encoding/decoding
-SECRET_KEY = "fff2c2d22a9a0247fed2bf63a3886d1e515ea38ac8b02724d9a1e2dccf36408b"
+
+SECRET_KEY = ""
 ALGORITHM = "HS256"
 
 # Database URL and engine initialization
 DATABASE_URL = (
-    "postgresql+psycopg2://postgres:Bag_pula123.@my-first-db.cbomes4a4cj7.us-east-1.rds.amazonaws.com:5432/postgres"
+    ""
 )
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
