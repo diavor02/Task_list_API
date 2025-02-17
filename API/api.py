@@ -243,7 +243,7 @@ async def update_notifications(
     return db_user
 
 
-@app.delete("/users/delete", response_model=dict)
+@app.delete("/users", response_model=dict)
 def delete_user(
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
@@ -302,7 +302,7 @@ def get_tasks(
     return tasks
 
 
-@app.post("/tasks/new_task", response_model=TaskResponse)
+@app.post("/tasks", response_model=TaskResponse)
 def new_task(
     task: CreateTask,
     db: Session = Depends(get_db),
@@ -428,7 +428,7 @@ def update_deadline(
     return db_task
 
 
-@app.delete("/tasks/{id}/delete", response_model=dict)
+@app.delete("/tasks/{id}", response_model=dict)
 def delete_task(
     id: int,
     db: Session = Depends(get_db),
