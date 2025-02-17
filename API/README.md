@@ -45,17 +45,17 @@
 | PUT    | `/users/email`         | Update user email                      |
 | PUT    | `/users/password`      | Update user password                   |
 | PUT    | `/users/notifications` | Toggle notifications                   |
-| DELETE | `/users/delete`        | Delete user account                    |
+| DELETE | `/users`               | Delete user account                    |
 <br>
 <h3>Task Management</h3>
 
 | Method | Endpoint                     | Description                      |
 |--------|------------------------------|----------------------------------|
 | GET    | `/tasks`                     | Get all user tasks               |
-| POST   | `/tasks/new_task`            | Create new task                  |
+| POST   | `/tasks`                     | Create new task                  |
 | PUT    | `/tasks/{id}/description`    | Update task description          |
 | PUT    | `/tasks/{id}/deadline`       | Update task deadline             |
-| DELETE | `/tasks/{id}/delete`         | Delete specific task             |
+| DELETE | `/tasks/{id}`                | Delete specific task             |
 <br>
 <h2>Database Schema</h2>
 <h3>Users Table</h3>
