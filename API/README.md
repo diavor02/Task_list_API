@@ -31,7 +31,7 @@
 </ul>
 
 <p align="center">
- <img src="architecture.png" height="100">
+ <img src="architecture.png" height="300">
 </p>
 
 <br>
