@@ -80,7 +80,6 @@
 <p>All API endpoints except user registration and token acquisition require JWT authentication. Include the token in the Authorization header: <code>Authorization: Bearer [your_token]</code></p>
 <br>
 <h2>Example Usage</h2>
-<p>The FAST API automatically generated documentation</p>
 <h3>User registration</h3>
 <pre><code>
   import requests
