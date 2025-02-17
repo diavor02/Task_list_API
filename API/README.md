@@ -108,7 +108,7 @@
   <br>
   task_data = {
       "description": "Complete project",
-      "deadline": "2024-05-31"
+      "deadline": "2025-01-09"
   }
   <br>
   response = requests.post(task_url, json=task_data, headers=headers)
@@ -142,7 +142,7 @@
 <pre><code>
   {
     "id": 1,
-    "description": "Finish the project",
+    "description": "Complete project",
     "deadline": "2025-01-09"
   }
 </code></pre>
