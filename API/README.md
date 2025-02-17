@@ -19,7 +19,7 @@
 <p>Here I am describing the architecture of Tasks API, a secure, stateless API for managing user tasks with JWT authentication, built using FastAPI and PostgreSQL, deployed as an AWS Lambda function with API Gateway.</p>
 
 <br>
-<h2>Featrues</h2>
+<h2>Features</h2>
 <ul>
   <li>User registration and authentication with JWT</li>
   <li>Password hashing and secure credential validation</li>
