@@ -142,7 +142,7 @@
 <pre><code>
   {
     "id": 1,
-    "description": "Finish the CS homework",
+    "description": "Finish the project",
     "deadline": "2025-01-09"
   }
 </code></pre>
