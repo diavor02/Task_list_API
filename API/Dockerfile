@@ -6,4 +6,4 @@ RUN pip install -r requirements.txt --target /var/task/
 
 COPY . .
 
-CMD [ "api2.handler" ]
+CMD [ "api.handler" ]
