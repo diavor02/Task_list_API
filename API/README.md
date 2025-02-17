@@ -77,7 +77,7 @@
 | deadline       | Date      | Task deadline in YYYY-MM-DD format          |
 <br>
 <h2>Authentication</h2>
-<p>All endpoints except `/users` and `/token` require JWT authentication. Include the token in the Authorization header: <code>Authorization: Bearer [your_token]</code></p>
+<p>All API endpoints except user registration and token acquisition require JWT authentication. Include the token in the Authorization header: <code>Authorization: Bearer [your_token]</code></p>
 <br>
 <h2>Example Usage</h2>
 <p>The FAST API automatically generated documentation</p>
