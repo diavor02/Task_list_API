@@ -90,46 +90,69 @@ Interactive Swagger/OpenAPI documentation available at:
 <p>First, ensure the <code>requests</code> library is installed: <code>pip install requests</code>.</p>
 
 <h3>User registration</h3>
-<pre><code>  import requests
 
-  BASE_URL = "https://x1y5tdqmai.execute-api.us-east-1.amazonaws.com"
+```python
+import requests
 
-  def register_user(email, password):
-      url = f"{BASE_URL}/users"
-      payload = {
-          "email": email,
-          "password": password
-      }
-      response = requests.post(url, json=payload)
-      return response.json()
-  
-  new_user = register_user("user@example.com", "SecurePass123!")
-  print(new_user)</code></pre>
+BASE_URL = "https://x1y5tdqmai.execute-api.us-east-1.amazonaws.com"
+
+def register_user(email, password):
+    url = f"{BASE_URL}/users"
+    payload = {
+        "email": email,
+        "password": password
+    }
+    response = requests.post(url, json=payload)
+    return response.json()
+
+new_user = register_user("user@example.com", "SecurePass123!")
+print(new_user)
+```
 <br>
 <h3>Get Access Token</h3>
-<pre><code>  auth_url = "https://4mvvs3klti.execute-api.us-east-1.amazonaws.com/token"
-  response = requests.post(auth_url, json=data)
-  access_token = response.json()</code></pre>
+
+```python
+def login_user(email, password):
+    url = f"{BASE_URL}/auth/token"
+    payload = {
+        "email": email,
+        "password": password
+    }
+    response = requests.post(url, json=payload)
+    return response.json()
+
+# Example usage
+login_response = login_user("user@example.com", "SecurePass123!")
+access_token = login_response["access_token"]
+print("Access Token:", access_token)
+```
+
 <br>
 <h3>Create Task</h3>
-<pre><code>  task_url = "https://4mvvs3klti.execute-api.us-east-1.amazonaws.com/tasks"
-  <br>
-  headers = {"Authorization": f"Bearer {access_token}"}
-  <br>
-  task_data = {
-      "description": "Complete project",
-      "deadline": "2025-01-09"
-  }
-  <br>
-  response = requests.post(task_url, json=task_data, headers=headers)</code></pre>
-<br>
-<h3>Get All Tasks</h3>
-<pre><code>  tasks_url = "https://4mvvs3klti.execute-api.us-east-1.amazonaws.com/tasks"
-  response = requests.get(tasks_url, headers=headers)</code></pre>
-<br>
+
+```pyrhon
+def create_task(description, deadline, access_token):
+    url = f"{BASE_URL}/tasks"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    payload = {
+        "description": description,
+        "deadline": deadline
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()
+
+# Example usage
+task = create_task("Finish API project", "2023-12-31", access_token)
+print(task)
+```
+
 <h2>Request and Response Examples</h2>
 <h3>User Registration Response</h3>
-<pre><code>{
+
+```python
+{
   "id": 1,
   "email": "user@example.com",
   "notifications": 1,
@@ -137,10 +160,13 @@ Interactive Swagger/OpenAPI documentation available at:
     "self": {"href": "/users", "method": "POST"},
     "login_for_access_token": {"href": "/token", "method": "POST"}
   }
-}</code></pre>
+}
+```
 <br>
 <h3>Get access token</h3>
-<pre><code>{
+
+```python
+{
   "access_token": "eyJhbGci...",
   "token_type": "bearer",
   "links": {
@@ -148,9 +174,12 @@ Interactive Swagger/OpenAPI documentation available at:
     "update_user": {"href": "/users/me", "method": "PATCH"},
     "delete_user": {"href": "/users/me", "method": "DELETE"}
   }
-}</code></pre>
+}
+```
 <h3>Task Creation/Update Response</h3>
-<pre><code>{
+
+```python
+{
   "task": {
     "id": 1,
     "description": "Complete API project",
@@ -162,7 +191,8 @@ Interactive Swagger/OpenAPI documentation available at:
     "update_task": {"href": "/tasks/1", "method": "PATCH"},
     "delete_task": {"href": "/tasks/1", "method": "DELETE"}
   }
-}</code></pre>
+}
+```
 
 <h2>Security Notes</h2>
 <ul>
