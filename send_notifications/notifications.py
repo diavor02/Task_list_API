@@ -41,7 +41,7 @@ class Task(Base):
 
 
 DATABASE_URL = (
-    "postgresql+psycopg2://postgres:Bag_pula123.@my-first-db.cbomes4a4cj7.us-east-1.rds.amazonaws.com:5432/postgres"
+    ""
 )
 
 engine = create_engine(DATABASE_URL)
@@ -92,7 +92,7 @@ def sendUserNotif(db):
 # Purpose: Composes an email with task reminders and sends it to the user.
 def send_email(email, descriptions):
     email_sender = 'mylistnotifications@gmail.com' 
-    email_password = 'zqqy gpac mqho knym'
+    email_password = ''
     email_receiver = email # The email of the user
 
     em = EmailMessage()
