@@ -1,6 +1,7 @@
-from fastapi import Request, FastAPI, HTTPException, Depends, status
+from fastapi import Request, FastAPI, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from functions import (
-    check_pass,
+    check_password,
     check_email,
     create_access_token,
     get_token_from_header,
@@ -14,23 +15,34 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
 from models import (
     CreateTask,
-    TaskDescriptionUpdate,
-    TaskDeadlineUpdate,
-    TaskResponse,
+    TaskData,
+    TaskUpdate,
+    TaskResponseWithLinks,
     UserData,
-    UserEmailUpdate,
-    UserPasswordUpdate,
+    UserPassword,
+    UserUpdateRequest,
     UserResponse,
+    UserAccessToken,
+    ErrorResponse
 )
 from models import User, Task
 from typing import List
 from mangum import Mangum
 from datetime import datetime
+import re
 
 app = FastAPI()
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 ALGORITHM = "HS256"
+
+EXISTING_USER = "EXISTING USER"
+USER_NOT_FOUND = "USER NOT FOUND"
+INVALID_EMAIL = "INVALID EMAIL"
+INVALID_PASSWORD = "INVALID PASSWORD"
+INVALID_CREDENTIALS = "INVALID CREDENTIALS"
+TASK_NOT_FOUND = "TASK NOT FOUND"
+INVALID_DATE = "INVALID DATE"
 
 DATABASE_URL = (
     ""
@@ -48,46 +60,47 @@ def get_db():
         db.close()
 
 
-
-@app.post("/users", response_model=UserResponse)
-def new_user(user: UserData, db: Session = Depends(get_db)):
+@app.post("/users", response_model=UserResponse, status_code=201)
+async def new_user(user: UserData, db: Session = Depends(get_db)):
     """
     Register a new user account.
 
-    This endpoint creates a new user account using the provided email and 
-    password. It checks if an account with the given email already exists, 
-    validates the email and password (ensuring that the password contains at 
-    least one uppercase letter, one digit, and one special character), hashes 
-    the password, and then stores the new user in the database.
-
     Args:
-        user (UserData): The user data containing email and password.
-        db (Session, optional): A database session provided by dependency 
-        injection.
+        The user's registration data (email and password).
 
     Returns:
-        UserResponse: The created user details including id, email, and 
-        notification status.
+        Newly created user details with HATEOAS links.
 
     Raises:
-        HTTPException: If an account with the provided email already exists or 
-        if the email/password is invalid.
+        HTTPException: 
+            - 409 (Conflict): If email already exists in system
+            - 400 (Bad Request): For invalid email format or password 
+            policy violations
     """
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(
-            status_code=400,
-            detail="An account with this email already exists"
+            status_code=409,
+            detail=ErrorResponse(
+                code=EXISTING_USER,
+                message="A user with this email already exists.",
+                details={"email": user.email}
+            ).model_dump()
         )
 
-    if not check_pass(user.password) or not check_email(user.email):
+    if not check_password(user.password) or not check_email(user.email):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Invalid email or password. The password must contain at least " 
-                "one uppercase letter, "
-                "one digit, and one special character."
-            )
+            detail=ErrorResponse(
+                code=INVALID_PASSWORD,
+                message=("Invalid email or password. Passwords must contain at least "
+                    "one uppercase letter, one lowercase letter, one digit, "
+                    "one special character, and be at least 8 characters long."),
+                details={
+                            "email": user.email,
+                            "password": user.password
+                        }
+            ).model_dump()
         )
 
     db_user = User(
@@ -98,244 +111,356 @@ def new_user(user: UserData, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
 
-    return db_user
+    links = {
+            "self": {"href": "/users", "method": "POST"},
+            "login_for_access_token": {"href": "/token", "method": "POST"}
+            }
+
+    return UserResponse(
+        id = db_user.id,
+        email = db_user.email,
+        notifications = 1,
+        links = links
+    )
 
 
-@app.post("/token")
+@app.post("/auth/token", response_model = UserAccessToken)
 async def login_for_access_token(user: UserData, 
                                  db: Session = Depends(get_db)):
     """
-    Authenticate a user and provide a JWT access token.
-
-    This endpoint verifies the provided user credentials. If the credentials 
-    are valid, a JWT access token is generated, which is then used to 
-    authorize subsequent API requests.
+    Authenticate user and generate JWT access token.
 
     Args:
-        user (UserData): The user data containing email and password.
-        db (Session, optional): A database session provided by dependency 
-        injection.
+        User credentials containing email and password.
 
     Returns:
-        dict: A dictionary containing the access token and token type 
-        ("bearer").
+        Access token with token type and navigation links.
 
     Raises:
-        HTTPException: If authentication fails.
+        HTTPException: 
+            - 401 (Unauthorized): For invalid authentication credentials
+            - 400 if the user cannot be found
     """
     db_user = authenticate_user(user.email, user.password, db)
     access_token = create_access_token(data={"sub": str(db_user.id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+
+    links = {
+        "self": {"href": "/token", "method": "POST"},
+        "update_user": {"href": "/users/me", "method": "PATCH"},
+        "delete_user": {"href": "/users/me", "method": "DELETE"},
+    }
+
+    return UserAccessToken(
+        access_token = access_token,
+        token_type = "bearer",
+        links = links
+    )
 
 
-@app.put("/users/email", response_model=UserResponse)
-async def update_email(
-    update: UserEmailUpdate,
-    db: Session = Depends(get_db),
-    token: str = Depends(get_token_from_header)):
-    """
-    Update the authenticated user's email address.
-
-    The endpoint validates the user's token, retrieves the corresponding user, 
-    and then updates the email address in the database.
-
-    Args:
-        update (UserEmailUpdate): The payload containing the new email address.
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
-
-    Returns:
-        UserResponse: The updated user details including id, email, and 
-        notification status.
-
-    Raises:
-        HTTPException: If the user is not found.
-    """
-    user_id = get_user_id(db, token)
-    db_user = db.query(User).filter(User.id == user_id).first()
-
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    db_user.email = update.email
-    db.commit()
-    db.refresh(db_user)
-
-    return db_user
-
-
-@app.put("/users/password", response_model=UserResponse)
-async def update_password(
-    update: UserPasswordUpdate,
+@app.get("/users/me", response_model=UserResponse)
+async def get_user(
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Update the authenticated user's password.
-
-    The endpoint verifies the current password before updating to a new 
-    password. The new password is hashed before being saved to the database.
-
-    Args:
-        update (UserPasswordUpdate): The payload containing the current and new 
-                                     passwords.
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
+    Retrieve authenticated user's profile information.
 
     Returns:
-        UserResponse: The updated user details including id, email, and 
-        notification status.
+        Current user details with HATEOAS links.
 
     Raises:
-        HTTPException: If the user is not found or if the current password is 
-                        incorrect.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 404 (Not Found): If user account no longer exists
     """
     user_id = get_user_id(db, token)
     db_user = db.query(User).filter(User.id == user_id).first()
 
     if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                code=USER_NOT_FOUND,
+                message="User not found",
+            ).model_dump()
+        )
+    
+    links = {
+        "self": {"href": "/users/me", "method": "GET"},
+        "update_user": {"href": "/users/me", "method": "PATCH"},
+        "delete_user": {"href": "/users/me", "method": "DELETE"}
+    }
 
-    # Verify that the current password matches the stored password
-    if not verify_password(update.current_password, db_user.password):
-        raise HTTPException(status_code=400, detail="Incorrect password")
+    return UserResponse(
+        id=db_user.id,
+        email=db_user.email,
+        notifications=db_user.notifications,
+        links=links
+    )
 
-    db_user.password = hash_password(update.new_password)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-@app.put("/users/notifications", response_model=UserResponse)
-async def update_notifications(
+@app.patch("/users/me", response_model=UserResponse)
+async def update_user(
+    update: UserUpdateRequest,
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Toggle the authenticated user's notification setting.
-
-    This endpoint inverts the current notification status of the user 
-    (enabled to disabled or vice versa).
+    Update authenticated user's account details.
 
     Args:
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
+        Fields to update, requiring current password validation
 
     Returns:
-        UserResponse: The updated user details including id, email, and 
-                      notification status.
+        Updated user details with navigation links.
 
     Raises:
-        HTTPException: If the user is not found.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 404 (Not Found): If user account no longer exists
+            - 400 (Bad Request): For validation errors in new credentials
     """
     user_id = get_user_id(db, token)
     db_user = db.query(User).filter(User.id == user_id).first()
 
     if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                code=USER_NOT_FOUND,
+                message="User not found",
+            ).model_dump()
+        )
 
-    db_user.notifications = 0 if db_user.notifications else 1
+    if update.current_password: 
+        if verify_password(update.current_password, db_user.password):
+
+            if update.new_password:
+                if not check_password(update.new_password):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=ErrorResponse(
+                            code=INVALID_PASSWORD,
+                            message=("Invalid email or password. Passwords must contain at least "
+                                "one uppercase letter, one lowercase letter, one digit, "
+                                "one special character, and be at least 8 characters long.")
+                        ).model_dump()
+                    )
+
+            db_user.password = hash_password(update.new_password)
+
+            if update.email:
+                if not check_email(update.email):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=ErrorResponse(
+                            code=INVALID_EMAIL,
+                            message="Invalid email format",
+                            details={"email": update.email}
+                        ).model_dump()
+                    )
+                db_user.email = update.email
+
+
+            if update.update_notification_status == "Yes":
+                db_user.notifications = 0 if db_user.notifications else 1
+
+        else:
+            raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponse(
+                        code=INVALID_PASSWORD,
+                        message="Current password is incorrect",
+                    ).model_dump()
+                )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                code=INVALID_PASSWORD,
+                message="Current password is required to update the user credentials",
+            ).model_dump()
+        )
+
     db.commit()
     db.refresh(db_user)
-    return db_user
+
+    links = {
+        "self": {"href": "/users/me", "method": "PATCH"},
+        "delete_user": {"href": "/users/me", "method": "DELETE"},
+    }
+
+    return UserResponse(
+        id=db_user.id,
+        email=db_user.email,
+        notifications=db_user.notifications,
+        links=links
+    )
 
 
-@app.delete("/users", response_model=dict)
-def delete_user(
+@app.delete("/users/me", status_code=204)
+async def delete_user(
+    credential: UserPassword,
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Delete the authenticated user's account.
-
-    This endpoint removes the user's account from the database.
+    Permanently delete authenticated user's account.
 
     Args:
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
-
-    Returns:
-        dict: A dictionary confirming the successful deletion of the user.
+        Current password confirmation
 
     Raises:
-        HTTPException: If the user is not found.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 400 (Bad Request): Incorrect password confirmation
+            - 404 (Not Found): If user account no longer exists
     """
     user_id = get_user_id(db, token)
     db_user = db.query(User).filter(User.id == user_id).first()
 
+    if not verify_password(credential.password, db_user.password):
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse(
+                code=INVALID_PASSWORD,
+                message="Current password is incorrect",
+            ).model_dump()
+        )
+
     if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404, 
+            detail=ErrorResponse(
+                code=USER_NOT_FOUND,
+                message="User not found"
+            ).model_dump()
+        )
 
     db.delete(db_user)
     db.commit()
-    return {"response": "User deleted successfully"}
+    return
 
 
-@app.get("/tasks", response_model=List[TaskResponse])
-def get_tasks(
+@app.get("/tasks/{id}", response_model=TaskResponseWithLinks)
+async def get_task(id: int, db: Session = Depends(get_db), token: str = Depends(get_token_from_header)):
+    """
+    Retrieve specific task by ID for authenticated user.
+
+    Args:
+        Task identifier.
+
+    Returns:
+        Task details with associated links.
+
+    Raises:
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 404 (Not Found): Task not found or unauthorized access
+    """
+    user_id = get_user_id(db, token)
+    db_task = db.query(Task).filter(Task.user_id == user_id, Task.id == id).first()
+
+    if db_task is None:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                code=TASK_NOT_FOUND,
+                message="Task not found",
+                details={"task id": id}
+            ).model_dump()
+        )
+    
+    links = {"self": {"href": "/tasks", "method": "GET"},
+             "new_task": {"href": f"/tasks/{id}", "method": "POST"},
+             "update_task": {"href": f"/tasks/{id}", "method": "PATCH"},
+             "delete_task": {"href": f"/tasks/{id}", "method": "DELETE"}}
+    
+    return TaskResponseWithLinks(
+        task=db_task,
+        links=links
+    )
+
+
+@app.get("/tasks", response_model=List[TaskResponseWithLinks])
+async def get_tasks(
+    query: TaskData = Depends(),
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Retrieve all tasks for the authenticated user.
+    Search tasks with optional filters for authenticated user.
 
-    Args:
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
+    Query Parameters:
+        - keyword_pattern (str): Filter tasks by description substring
+        - start_date (date): Tasks due after this date (inclusive)
+        - end_date (date): Tasks due before this date (inclusive)
 
     Returns:
-        List[TaskResponse]: A list of tasks belonging to the user.
+        Matching tasks with navigation links
 
     Raises:
-        HTTPException: If no tasks are found for the user.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
     """
     user_id = get_user_id(db, token)
-    tasks = db.query(Task).filter(Task.user_id == user_id).all()
-    if not tasks:
-        raise HTTPException(status_code=404, 
-                            detail="No tasks found for the user")
-    return tasks
+
+    tasks_query = db.query(Task).filter(Task.user_id == user_id)
 
 
-@app.post("/tasks", response_model=TaskResponse)
-def new_task(
+    if query.keyword_pattern:
+        keyword_pattern = f"%{query.keyword_pattern}%"
+        tasks_query = tasks_query.filter(Task.description.ilike(keyword_pattern))
+
+    if query.start_date:
+        tasks_query = tasks_query.filter(Task.deadline >= query.start_date)
+
+    if query.end_date:
+        tasks_query = tasks_query.filter(Task.deadline <= query.end_date)
+
+    tasks = tasks_query.all()
+
+    list_task_responses = []
+
+    for task in tasks:
+        links = {"self": {"href": "/tasks", "method": "GET"},
+             "new_task": {"href": "/tasks", "method": "POST"},
+             "update_task": {"href": f"/tasks/{task.id}", "method": "PATCH"},
+             "delete_task": {"href": f"/tasks/{task.id}", "method": "DELETE"}}
+        list_task_responses.append(TaskResponseWithLinks(task=task, links=links))
+
+    return list_task_responses
+
+
+@app.post("/tasks", response_model=TaskResponseWithLinks, status_code=201)
+async def new_task(
     task: CreateTask,
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Create a new task for the authenticated user.
-
-    The provided deadline must be a string in the format YYYY-MM-DD. It is 
-    validated using a regex check and then converted to a Date object before 
-    being stored in the database.
+    Create new task for authenticated user.
 
     Args:
-        task (CreateTask): The payload containing the task description and 
-                           deadline.
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
+        The description and deadline of the task.
 
     Returns:
-        TaskResponse: The newly created task details including id, 
-                      description, and deadline.
+        The task information as well as useful links.
 
     Raises:
-        HTTPException: If the provided deadline format is invalid.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 400 (Bad Request): Invalid date format
     """
     user_id = get_user_id(db, token)
 
-    # The task deadline is passed as a string so as to check the correct format
     if not check_date(task.deadline):
         raise HTTPException(
             status_code=400,
-            detail="Invalid date format. Try YYYY-MM-DD"
+            detail=ErrorResponse(
+                code=INVALID_DATE,
+                message="Invalid date format. Try YYYY-MM-DD",
+                details={"deadline": task.deadline}
+            ).model_dump()
         )
 
     # Convert the deadline string to a date object
@@ -345,124 +470,125 @@ def new_task(
         description=task.description,
         deadline=deadline_date
     )
+
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    return db_task
+
+    links = {"self": {"href": "/tasks", "method": "POST"},
+            "get_tasks": {"href": "/tasks", "method": "GET"},
+            "update_task": {"href": f"/tasks/{db_task.id}", "method": "PATCH"},
+            "delete_task": {"href": f"/tasks/{db_task.id}", "method": "DELETE"}}
+
+    return TaskResponseWithLinks(
+        task=db_task,
+        links=links
+    )
 
 
-@app.put("/tasks/{id}/description", response_model=TaskResponse)
-def update_description(
+@app.patch("/tasks/{id}", response_model=TaskResponseWithLinks)
+async def update_task(
     id: int,
-    update: TaskDescriptionUpdate,
+    update: TaskUpdate,
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Update the description of a specific task.
-
-    This endpoint updates the description of the task identified by its ID,
-    provided that the task belongs to the authenticated user.
+    Update a task based on its id.
 
     Args:
-        id (int): The unique identifier of the task.
-        update (TaskDescriptionUpdate): The payload containing the new 
-                                        description.
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
+        The task identifier, as well as the fields to update 
+        (description and/or deadline)
 
     Returns:
-        TaskResponse: The updated task details including id, description, and 
-                      deadline.
+        Updated task details with navigation links.
 
     Raises:
-        HTTPException: If the task is not found.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 404 (Not Found): Task not found or unauthorized access
+            - 400 (Bad Request): Invalid date format
     """
     user_id = get_user_id(db, token)
     db_task = db.query(Task).filter(Task.user_id == user_id, Task.id == id).first()
-    if db_task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
 
-    db_task.description = update.description
+    if db_task is None:
+        raise HTTPException(
+            status_code=404, 
+            detail=ErrorResponse(
+                code=TASK_NOT_FOUND,
+                message="Task not found"
+            ).model_dump()
+        )
+    
+    if update.deadline:
+        if not check_date(update.deadline):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(
+                    code=INVALID_DATE,
+                    message="Invalid date format. Try YYYY-MM-DD",
+                    details={"deadline": update.deadline}
+                ).model_dump()
+            )
+        
+        deadline_date = datetime.strptime(update.deadline, "%Y-%m-%d").date()
+        db_task.deadline = deadline_date
+
+    if update.description:
+        db_task.description = update.description
+
     db.commit()
     db.refresh(db_task)
-    return db_task
 
 
-@app.put("/tasks/{id}/deadline", response_model=TaskResponse)
-def update_deadline(
-    id: int,
-    update: TaskDeadlineUpdate,
-    db: Session = Depends(get_db),
-    token: str = Depends(get_token_from_header)
-):
-    """
-    Update the deadline of a specific task.
+    links = {"self": {"href": f"/tasks/{id}", "method": "PATCH"},
+             "new_task": {"href": "/tasks", "method": "POST"},
+             "get_tasks": {"href": "/tasks", "method": "GET"},
+             "delete_task": {"href": f"/tasks/{id}", "method": "DELETE"}}
 
-    This endpoint updates the deadline of the task identified by its ID,
-    provided that the task belongs to the authenticated user.
-    The new deadline must be in the format YYYY-MM-DD.
-
-    Args:
-        id (int): The unique identifier of the task.
-        update (TaskDeadlineUpdate): The payload containing the new deadline.
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
-
-    Returns:
-        TaskResponse: The updated task details including id, description, 
-                      and deadline.
-
-    Raises:
-        HTTPException: If the task is not found.
-    """
-    user_id = get_user_id(db, token)
-    db_task = db.query(Task).filter(Task.user_id == user_id, Task.id == id).first()
-    if db_task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    deadline_date = datetime.strptime(update.deadline, "%Y-%m-%d").date()
-    db_task.deadline = deadline_date
-    db.commit()
-    db.refresh(db_task)
-    return db_task
+    return TaskResponseWithLinks(
+        task=db_task,
+        links=links
+    )
 
 
-@app.delete("/tasks/{id}", response_model=dict)
-def delete_task(
+@app.delete("/tasks/{id}", status_code=204)
+async def delete_task(
     id: int,
     db: Session = Depends(get_db),
     token: str = Depends(get_token_from_header)
 ):
     """
-    Delete a specific task.
-
-    This endpoint deletes the task identified by its unique ID,
-    provided that the task belongs to the authenticated user.
+    Delete specific task for authenticated user.
 
     Args:
-        id (int): The unique identifier of the task.
-        db (Session, optional): A database session provided by dependency 
-                                injection.
-        token (str, optional): JWT token extracted from the request header.
+        The task identifier.
 
     Returns:
-        dict: A dictionary confirming the successful deletion of the task.
+        Nothing (sattus code 204).
 
     Raises:
-        HTTPException: If the task is not found.
+        HTTPException: 
+            - 401 (Unauthorized): Invalid or missing JWT token
+            - 404 (Not Found): Task not found or unauthorized access
     """
     user_id = get_user_id(db, token)
     db_task = db.query(Task).filter(Task.user_id == user_id, Task.id == id).first()
+    
     if db_task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(
+            status_code=404, 
+            detail=ErrorResponse(
+                code=TASK_NOT_FOUND,
+                message="Task not found"
+            ).model_dump()
+        )
 
     db.delete(db_task)
     db.commit()
-    return {"response": "Task deleted successfully"}
+    return
+
 
 
 handler = Mangum(app)
-
