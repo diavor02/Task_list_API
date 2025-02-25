@@ -110,7 +110,7 @@ new_user = register_user("user@example.com", "SecurePass123!")
 print(new_user)
 ```
 <br>
-<h3>Get Access Token</h3>
+<h3>Geting Access Token</h3>
 
 ```python
 def login_user(email, password):
@@ -129,7 +129,7 @@ print("Access Token:", access_token)
 ```
 
 <br>
-<h3>Create Task</h3>
+<h3>Creating Task</h3>
 
 ```python
 def create_task(description, deadline, access_token):
