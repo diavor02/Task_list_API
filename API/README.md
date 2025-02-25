@@ -8,6 +8,7 @@
   <li><a href="#authentication">Authentication</a></li>
   <li><a href="#example-usage-with-python-scripts">Example Usage with Python Scripts</a></li>
   <li><a href="#request-and-response-examples">Request and Response Examples</a></li>
+  <li><a href="#error-handling">Error handling</a></li>
   <li><a href="#security-notes">Security Notes</a></li>
   <li><a href="#deployment">Deployment</a></li>
   <li><a href="#dependencies">Dependencies</a></li>
@@ -277,8 +278,18 @@ print(tasks)
         }
     }
 ```
+<br>
+<h2>Error handling</h2>
+The API returns standardized error responses with HTTP status codes:
 
-
+| Code | Error                 | Description                               |
+|------|-----------------------|-------------------------------------------|
+| 400  | Bad Request           | Invalid input format or validation error  |
+| 401  | Unauthorized          | Missing or invalid authentication token   |
+| 404  | Not Found             | Resource not found                        |
+| 409  | Conflict              | Duplicate email during registration       |
+| 500  | Internal Server Error | Server-side error                         |
+<br>
 <h2>Security Notes</h2>
 <ul>
   <li>
