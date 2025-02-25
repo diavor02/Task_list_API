@@ -6,7 +6,7 @@
   <li><a href="#database-schema">Database Schema</a></li>
   <li><a href="#authentication">Authentication</a></li>
   <li><a href="#example-usage">Example Usage</a></li>
-  <li><a href="#request-response-examples">Request/Response Examples</a></li>
+  <li><a href="#request-and-response-examples">Request and Response Examples</a></li>
   <li><a href="#security-notes">Security Notes</a></li>
   <li><a href="#deployment">Deployment</a></li>
   <li><a href="#dependencies">Dependencies</a></li>
@@ -120,7 +120,7 @@
   response = requests.get(tasks_url, headers=headers)
 </code></pre>
 <br>
-<h2>Request/Response Examples</h2>
+<h2>Request and Response Examples</h2>
 <h3>User Registration Request</h3>
 <pre><code>
   {
