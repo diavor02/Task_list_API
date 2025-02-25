@@ -1,17 +1,25 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from models import User, Task
+from models import User, ErrorResponse
 from datetime import datetime, timedelta, timezone, date
 import re
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
 from passlib.context import CryptContext
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException
+from typing import Union
 
 
 SECRET_KEY = ""
 ALGORITHM = "HS256"
 
-# Database URL and engine initialization
+INVALID_TOKEN = "INVALID TOKEN"
+USER_NOT_FOUND = "USER NOT FOUND"
+INVALID_CREDENTIALS = "INVALID CREDENTIALS"
+AUTHORIZATION_HEADER_NOT_FOUND = "AUTHORIZATION_HEADER_NOT_FOUND"
+INVALID_AUTHORIZATION_HEADER = "INVALID_AUTHORIZATION_HEADER"
+INVALID_AUTHENTIFICATION_SCHEME = "INVALID_AUTHENTIFICATION_SCHEME"
+
+
 DATABASE_URL = (
     ""
 )
@@ -69,7 +77,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def check_pass(password: str) -> bool:
+def check_password(password: str) -> bool:
     """
     Check if the provided password is secure.
 
@@ -87,12 +95,12 @@ def check_pass(password: str) -> bool:
         bool: True if the password meets all criteria, False otherwise.
     """
     if len(password) < 8:
-        return False  # At least 8 characters long
+        return False
     return bool(
-        re.search(r'[A-Z]', password) and       # Uppercase letter
-        re.search(r'[a-z]', password) and       # Lowercase letter
-        re.search(r'\d', password) and          # Digit
-        re.search(r'[!@#$%^&*(),.?":{}|<>]', password)  # Special character
+        re.search(r'[A-Z]', password) and       
+        re.search(r'[a-z]', password) and 
+        re.search(r'\d', password) and
+        re.search(r'[!@#$%^&*(),.?":{}|<>]', password)
     )
 
 
@@ -138,23 +146,34 @@ def get_token_from_header(request: Request) -> str:
     auth_header: str = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header"
-        )
-    
+                status_code=401,
+                detail=ErrorResponse(
+                    code=AUTHORIZATION_HEADER_NOT_FOUND,
+                    message="Missing Authorization header",
+                ).model_dump()
+            )
+        
     try:
         scheme, token = auth_header.split()
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization header format"
-        )
+                status_code=401,
+                detail=ErrorResponse(
+                    code=INVALID_AUTHORIZATION_HEADER,
+                    message="Invalid Authorization header format",
+                ).model_dump()
+            )
     
     if scheme.lower() != "bearer":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication scheme"
-        )
+                status_code=401,
+                detail=ErrorResponse(
+                    code=INVALID_AUTHENTIFICATION_SCHEME,
+                    message="Invalid authentication scheme",
+                    details=scheme
+                ).model_dump()
+            )
+    
     return token
 
 
@@ -176,22 +195,38 @@ def authenticate_user(email: str, password: str, db: Session):
         HTTPException: If the email or password does not meet security criteria,
                        the user is not found, or the password is incorrect.
     """
-    if not check_email(email) or not check_pass(password):
+    if not check_email(email) or not check_password(password):
         raise HTTPException(
-            status_code=400, 
-            detail=(
-                "Invalid email or password. Passwords must contain at least "
-                "one uppercase letter one digit, one special character, and be "
-                "at least 8 characters long."
-            )
+            status_code=401,
+            detail=ErrorResponse(
+                code=INVALID_CREDENTIALS,
+                message=("Invalid email or password. Passwords must contain at least "
+                    "one uppercase letter, one lowercase letter, one digit, "
+                    "one special character, and be at least 8 characters long.")
+            ).model_dump()
         )
 
     db_user = db.query(User).filter(User.email == email).first()
     if not db_user:
-        raise HTTPException(status_code=400, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                code=USER_NOT_FOUND,
+                message="User not found",
+                details={"email": email}
+            ).model_dump()
+        )
+
 
     if not verify_password(password, db_user.password):
-        raise HTTPException(status_code=400, detail="Incorrect password")
+        raise HTTPException(
+            status_code=401,
+            detail=ErrorResponse(
+                code=INVALID_CREDENTIALS,
+                message="Incorrect password",
+                details={"password": password}
+            ).model_dump()
+        )
 
     return db_user
 
@@ -214,31 +249,46 @@ def get_user_id(db: Session, token: str) -> int:
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
+
+        user_id: Union[str, None] = payload.get("sub")
+        if not user_id:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token (user id missing)"
+                status_code=401,
+                detail=ErrorResponse(
+                    code=INVALID_TOKEN,
+                    message="The decoded user ID does not exist"
+                ).model_dump()
             )
-        
+
+        # Query user from database
         user = db.query(User).filter(User.id == user_id).first()
-        if user is None:
+        if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token (user not found)"
+                status_code=401,
+                detail=ErrorResponse(
+                    code=USER_NOT_FOUND,
+                    message="User not found",
+                    details={"user_id": user_id}
+                ).model_dump()
             )
-        
-        exp = payload.get("exp")
-        if exp and datetime.now(timezone.utc) > datetime.fromtimestamp(exp, tz=timezone.utc):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, 
-                                detail="Token has expired")
-        
+
         return user.id
 
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail=ErrorResponse(
+                code=INVALID_TOKEN,
+                message="Token has expired"
+            ).model_dump()
+        )
     except JWTError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token (problem with JWT)"
+            status_code=401,
+            detail=ErrorResponse(
+                code=INVALID_TOKEN,
+                message="Problem decoding the JWT token"
+            ).model_dump()
         )
 
 
@@ -253,12 +303,12 @@ def check_date(date_input, date_format: str = '%Y-%m-%d') -> bool:
     format before validation.
 
     Args:
-        date_input (Union[str, date]): The date input to validate.
+        date_input: The date input to validate.
         date_format (str): The expected date format (default is '%Y-%m-%d').
 
     Returns:
         bool: True if the date is valid according to the specified format, 
-        False otherwise.
+              False otherwise.
     """
     if isinstance(date_input, date):
         date_input = date_input.strftime(date_format)
