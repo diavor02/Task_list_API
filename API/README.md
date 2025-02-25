@@ -130,7 +130,7 @@ print("Access Token:", access_token)
 <br>
 <h3>Create Task</h3>
 
-```pyrhon
+```python
 def create_task(description, deadline, access_token):
     url = f"{BASE_URL}/tasks"
     headers = {
