@@ -49,13 +49,16 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-# Function name: sendUserNotif
-# Arguments: 
-#   - db (Session): A database session instance.
-# Returns:
-#   - None
-# Purpose: Sends reminder emails to users regarding their tasks due the next day.
+
 def sendUserNotif(db):
+    '''
+    Function name: sendUserNotif
+    Arguments: 
+      - db (Session): A database session instance.
+    Returns:
+      - None
+    Purpose: Sends reminder emails to users regarding their tasks due the next day.
+    '''
     try:
         tomorrow = (datetime.now() + timedelta(days=1)).date()
 
@@ -83,14 +86,17 @@ def sendUserNotif(db):
         raise
 
 
-# Function name: send_email
-# Arguments: 
-#   - email (str): The recipient's email address.
-#   - descriptions (list[str]): A list of task descriptions due the next day.
-# Returns:
-#   - None
-# Purpose: Composes an email with task reminders and sends it to the user.
+
 def send_email(email, descriptions):
+    '''
+    Function name: send_email
+    Arguments: 
+      - email (str): The recipient's email address.
+      - descriptions (list[str]): A list of task descriptions due the next day.
+    Returns:
+      - None
+    Purpose: Composes an email with task reminders and sends it to the user.
+    '''
     email_sender = 'mylistnotifications@gmail.com' 
     email_password = ''
     email_receiver = email # The email of the user
