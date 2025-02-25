@@ -134,12 +134,15 @@ print("Access Token:", access_token)
 def create_task(description, deadline, access_token):
     url = f"{BASE_URL}/tasks"
     headers = {
-        "Authorization": f"Bearer {access_token}"
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
     }
+
     payload = {
         "description": description,
         "deadline": deadline
     }
+
     response = requests.post(url, json=payload, headers=headers)
     return response.json()
 
@@ -148,6 +151,31 @@ task = create_task("Finish API project", "2023-12-31", access_token)
 print(task)
 ```
 
+<h3>Get a task based on query parameters</h3>
+
+```python
+def get_tasks(access_token, ):
+    url = f"{BASE_URL}/tasks"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "keyword_pattern": "",
+        "start_date": "",
+        "end_date": ""
+    }
+
+    response = requests.get(url, json=payload, headers=headers)
+    return response.json()
+
+# Example usage
+tasks = get_tasks(access_token)
+print(tasks)
+```
+
+<br>
 <h2>Request and Response Examples</h2>
 <h3>User Registration Response</h3>
 
@@ -176,6 +204,7 @@ print(task)
   }
 }
 ```
+<br>
 <h3>Task Creation/Update Response</h3>
 
 ```python
@@ -193,6 +222,62 @@ print(task)
   }
 }
 ```
+<br>
+<h3>Querying tasks</h3>
+
+```python
+{
+        "links": {
+            "delete_task": {
+                "href": "/tasks/2",
+                "method": "DELETE"
+            },
+            "new_task": {
+                "href": "/tasks",
+                "method": "POST"
+            },
+            "self": {
+                "href": "/tasks",
+                "method": "GET"
+            },
+            "update_task": {
+                "href": "/tasks/2",
+                "method": "PATCH"
+            }
+        },
+        "task": {
+            "deadline": "2025-01-03",
+            "description": "Hold a presentation",
+            "id": 2
+        }
+    },
+    {
+        "links": {
+            "delete_task": {
+                "href": "/tasks/7",
+                "method": "DELETE"
+            },
+            "new_task": {
+                "href": "/tasks",
+                "method": "POST"
+            },
+            "self": {
+                "href": "/tasks",
+                "method": "GET"
+            },
+            "update_task": {
+                "href": "/tasks/7",
+                "method": "PATCH"
+            }
+        },
+        "task": {
+            "deadline": "2025-02-02",
+            "description": "Set up the meeting",
+            "id": 7
+        }
+    }
+```
+
 
 <h2>Security Notes</h2>
 <ul>
