@@ -246,7 +246,7 @@ async def update_user(
                         ).model_dump()
                     )
 
-            db_user.password = hash_password(update.new_password)
+                db_user.password = hash_password(update.new_password)
 
             if update.email:
                 if not check_email(update.email):
